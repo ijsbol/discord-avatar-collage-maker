@@ -1,17 +1,16 @@
 import argparse
 import asyncio
 import glob
-from io import BytesIO
 import itertools
-from pathlib import Path
-from random import shuffle
 import sys
 import time
+from io import BytesIO
+from pathlib import Path
+from random import shuffle
 from typing import Any, Callable
 
 import aiohttp
 from PIL import Image
-
 
 type MemberRecord = tuple[int, str, str]
 
@@ -27,7 +26,7 @@ MAX_NUMBER_OF_CONCURRENT_DOWNLOAD_PROCESSES: int = 10
 AVATAR_SAVE_DIRECTORY: str = "avatars/"
 
 
-display: Callable[[str], None] = lambda string: print(string + ' ' * 50, end="\r")
+display: Callable[[str], None] = lambda string: print(string + " " * 50, end="\r")
 
 
 def _generate_member_record(member: dict[str, Any]) -> MemberRecord:
@@ -42,7 +41,7 @@ def _generate_member_record(member: dict[str, Any]) -> MemberRecord:
     # Both server avatar and global avatar not found, use default avatar.
     if avatar_hash is None:
         avatar_hash = str(int(user_id % 5))
-        avatar_url =  f"https://cdn.discordapp.com/embed/avatars/{avatar_hash}.png"
+        avatar_url = f"https://cdn.discordapp.com/embed/avatars/{avatar_hash}.png"
 
     else:
         avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png?format=png&quality=lossless&width={DOWNLOAD_SIZE}&height={DOWNLOAD_SIZE}"
@@ -53,10 +52,12 @@ async def handle_cooldown(cooldown: float) -> None:
     # Just gives interactive cooldown visualisations.
     cooldown *= RATELIMIT_JITTER_PERCENT
     cooldown_start_time = time.time()
-    cooldown_per_tick = (cooldown / COOLDOWN_UPDATE_TICKS)
+    cooldown_per_tick = cooldown / COOLDOWN_UPDATE_TICKS
     for _ in range(COOLDOWN_UPDATE_TICKS):
         cooldown_delta = time.time() - cooldown_start_time
-        display(f"Fetching members (on cooldown for {round(cooldown - cooldown_delta, 2):,}s)")
+        display(
+            f"Fetching members (on cooldown for {round(cooldown - cooldown_delta, 2):,}s)"
+        )
         await asyncio.sleep(cooldown_per_tick)
 
 
@@ -81,8 +82,12 @@ async def fetch_members(*, token: str, target_id: int) -> list[MemberRecord]:
                 },
             ) as request:
                 # Handle rate limits.
-                x_ratelimit_remaining = float(request.headers.get("x-ratelimit-remaining", None) or 0)
-                ratelimit_reset_after = float(request.headers.get("x-ratelimit-reset-after", None) or 0)
+                x_ratelimit_remaining = float(
+                    request.headers.get("x-ratelimit-remaining", None) or 0
+                )
+                ratelimit_reset_after = float(
+                    request.headers.get("x-ratelimit-reset-after", None) or 0
+                )
                 if x_ratelimit_remaining == 0:
                     await handle_cooldown(ratelimit_reset_after)
                     continue
@@ -93,13 +98,20 @@ async def fetch_members(*, token: str, target_id: int) -> list[MemberRecord]:
                 if len(raw_members) == 0:
                     break
 
-                members.extend([_generate_member_record(member) for member in raw_members])
+                members.extend(
+                    [_generate_member_record(member) for member in raw_members]
+                )
                 current_after = max([member[0] for member in members])
 
     return members
 
 
-async def _download_avatar_batch(*, semaphore: asyncio.Semaphore, members: list[MemberRecord], target_id: int, avatar_size: int) -> None:
+async def _download_avatar_batch(
+    *,
+    semaphore: asyncio.Semaphore,
+    members: list[MemberRecord],
+    target_id: int,
+) -> None:
     async with semaphore:
         async with aiohttp.ClientSession(
             headers={
@@ -120,12 +132,20 @@ async def _download_avatar_batch(*, semaphore: asyncio.Semaphore, members: list[
                         continue
                     avatar_bytes_io = BytesIO(await response.read())
                     avatar_bytes_io.seek(0)
-                    Image.open(avatar_bytes_io)\
-                        .save(f"{AVATAR_SAVE_DIRECTORY}{target_id}/{member_id}-{avatar_hash}.png")
+                    Image.open(avatar_bytes_io).save(
+                        f"{AVATAR_SAVE_DIRECTORY}{target_id}/{member_id}-{avatar_hash}.png"
+                    )
 
 
-async def download_avatars(*, members: list[MemberRecord], target_id: int, avatar_size: int) -> None:
-    avatar_batches = list(itertools.batched(members, NUMBER_OF_AVATARS_PER_DOWNLOAD_PROCESS))
+async def download_avatars(
+    *,
+    members: list[MemberRecord],
+    target_id: int,
+    avatar_size: int,
+) -> None:
+    avatar_batches = list(
+        itertools.batched(members, NUMBER_OF_AVATARS_PER_DOWNLOAD_PROCESS)
+    )
     semaphore = asyncio.Semaphore(MAX_NUMBER_OF_CONCURRENT_DOWNLOAD_PROCESSES)
     tasks = [
         _download_avatar_batch(
@@ -133,18 +153,28 @@ async def download_avatars(*, members: list[MemberRecord], target_id: int, avata
             members=batched_avatars,
             target_id=target_id,
             avatar_size=avatar_size,
-        ) for batched_avatars in avatar_batches
+        )
+        for batched_avatars in avatar_batches
     ]
     await asyncio.gather(*tasks)
 
 
-def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, by_age: bool, exclude_default: bool) -> None:
+def generate_image(
+    *,
+    target_id: int,
+    image_size: tuple[int, int],
+    avatar_size: int,
+    file_name: str,
+    by_age: bool,
+    exclude_default: bool,
+) -> None:
     avatar_image_paths = glob.glob(AVATAR_SAVE_DIRECTORY + f"{target_id}/*.png")
     if not by_age:
         shuffle(avatar_image_paths)
     if exclude_default:
         avatar_image_paths = [
-            path for path in avatar_image_paths
+            path
+            for path in avatar_image_paths
             if not len(path.split("-")[1].removesuffix(".png")) == 1
         ]
 
@@ -157,13 +187,20 @@ def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: 
             break
         scale *= 1.05
 
-    avatar_collation = Image.new('RGBA', (avatars_per_row * avatar_size, avatars_per_col * avatar_size))
-    x, y = 0 , 0
+    avatar_collation = Image.new(
+        "RGBA", (avatars_per_row * avatar_size, avatars_per_col * avatar_size)
+    )
+    x, y = 0, 0
     display("")
 
     for num, avatar_path in enumerate(avatar_image_paths):
-        display(f"(x: {x}, y: {y})\t(~{num}/{len(avatar_image_paths)})\t({round(num/len(avatar_image_paths)*100)}%)")
-        avatar_collation.paste(Image.open(avatar_path).resize((avatar_size, avatar_size)), (x * avatar_size, y * avatar_size))
+        display(
+            f"(x: {x}, y: {y})\t(~{num}/{len(avatar_image_paths)})\t({round(num/len(avatar_image_paths)*100)}%)"
+        )
+        avatar_collation.paste(
+            Image.open(avatar_path).resize((avatar_size, avatar_size)),
+            (x * avatar_size, y * avatar_size),
+        )
 
         if x < avatars_per_row - 1:
             x += 1
@@ -174,15 +211,37 @@ def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: 
     avatar_collation.save(file_name)
 
 
-async def generate(*, token: str, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, skip_download: bool, by_age: bool, exclude_default: bool) -> None:
-    Path(AVATAR_SAVE_DIRECTORY).joinpath(f"{target_id}/").mkdir(parents=True, exist_ok=True)
+async def generate(
+    *,
+    token: str,
+    target_id: int,
+    image_size: tuple[int, int],
+    avatar_size: int,
+    file_name: str,
+    skip_download: bool,
+    by_age: bool,
+    exclude_default: bool,
+) -> None:
+    Path(AVATAR_SAVE_DIRECTORY).joinpath(f"{target_id}/").mkdir(
+        parents=True, exist_ok=True
+    )
     if not skip_download:
         display("Fetching members.")
         members = await fetch_members(token=token, target_id=target_id)
         display("Downloading all avatars.")
-        await download_avatars(members=members, target_id=target_id, avatar_size=avatar_size)
+        await download_avatars(
+            members=members,
+            target_id=target_id,
+        )
     display("Generating image.")
-    generate_image(target_id=target_id, image_size=image_size, avatar_size=avatar_size, file_name=file_name, by_age=by_age, exclude_default=exclude_default)
+    generate_image(
+        target_id=target_id,
+        image_size=image_size,
+        avatar_size=avatar_size,
+        file_name=file_name,
+        by_age=by_age,
+        exclude_default=exclude_default,
+    )
     display(f"Image saved to {file_name}")
     print("")
 
@@ -246,7 +305,10 @@ def main() -> None:
 
     # Validate the aspect ratio format
     if ":" not in args.ar or len(args.ar.split(":")) != 2:
-        print("Error: Aspect ratio must be in the format WIDTH:HEIGHT (e.g., 16:9).", file=sys.stderr)
+        print(
+            "Error: Aspect ratio must be in the format WIDTH:HEIGHT (e.g., 16:9).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     width, height = args.ar.split(":")
