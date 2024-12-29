@@ -138,10 +138,15 @@ async def download_avatars(*, members: list[MemberRecord], target_id: int, avata
     await asyncio.gather(*tasks)
 
 
-def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, by_age: bool) -> None:
+def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, by_age: bool, exclude_default: bool) -> None:
     avatar_image_paths = glob.glob(AVATAR_SAVE_DIRECTORY + f"{target_id}/*.png")
     if not by_age:
         shuffle(avatar_image_paths)
+    if exclude_default:
+        avatar_image_paths = [
+            path for path in avatar_image_paths
+            if not len(path.split("-")[1].removesuffix(".png")) == 1
+        ]
 
     # ... there has to be a better way to do this, right? -kit
     scale = 1
@@ -169,7 +174,7 @@ def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: 
     avatar_collation.save(file_name)
 
 
-async def generate(*, token: str, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, skip_download: bool, by_age: bool) -> None:
+async def generate(*, token: str, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, skip_download: bool, by_age: bool, exclude_default: bool) -> None:
     Path(AVATAR_SAVE_DIRECTORY).joinpath(f"{target_id}/").mkdir(parents=True, exist_ok=True)
     if not skip_download:
         display("Fetching members.")
@@ -177,7 +182,7 @@ async def generate(*, token: str, target_id: int, image_size: tuple[int, int], a
         display("Downloading all avatars.")
         await download_avatars(members=members, target_id=target_id, avatar_size=avatar_size)
     display("Generating image.")
-    generate_image(target_id=target_id, image_size=image_size, avatar_size=avatar_size, file_name=file_name, by_age=by_age)
+    generate_image(target_id=target_id, image_size=image_size, avatar_size=avatar_size, file_name=file_name, by_age=by_age, exclude_default=exclude_default)
     display(f"Image saved to {file_name}")
     print("")
 
@@ -229,6 +234,12 @@ def main() -> None:
         default=False,
         help="Should the members be rendered by account age rather than in a random order?",
     )
+    parser.add_argument(
+        "--exclude-default",
+        type=bool,
+        default=False,
+        help="Should default avatars be excluded from the rendering process?",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -263,6 +274,7 @@ def main() -> None:
             file_name=args.name,
             skip_download=args.skip_download,
             by_age=args.by_age,
+            exclude_default=args.exclude_default,
         )
     )
 
