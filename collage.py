@@ -17,7 +17,7 @@ type MemberRecord = tuple[int, str, str]
 
 DISCORD_API_URL: str = "https://discord.com/api/v10/"
 USER_AGENT: str = "DiscordBot (https://git.uwu.gal/discord-avatar-collage-maker, 2.0.0)"
-FETCH_MEMBERS_PER_PAGE: int = 100
+FETCH_MEMBERS_PER_PAGE: int = 1000
 RATELIMIT_JITTER_PERCENT: float = 1.10
 DOWNLOAD_SIZE: int = 256
 COOLDOWN_UPDATE_TICKS: int = 20
