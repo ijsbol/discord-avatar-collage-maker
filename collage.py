@@ -120,7 +120,6 @@ async def _download_avatar_batch(*, semaphore: asyncio.Semaphore, members: list[
                     avatar_bytes_io = BytesIO(await response.read())
                     avatar_bytes_io.seek(0)
                     Image.open(avatar_bytes_io)\
-                        .resize((avatar_size, avatar_size))\
                         .save(f"{AVATAR_SAVE_DIRECTORY}{target_id}/{member_id}-{avatar_hash}.png")
 
 
@@ -156,7 +155,7 @@ def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: 
 
     for num, avatar_path in enumerate(avatar_image_paths):
         display(f"(x: {x}, y: {y})\t(~{num}/{len(avatar_image_paths)})\t({round(num/len(avatar_image_paths)*100)}%)")
-        avatar_collation.paste(Image.open(avatar_path), (x * avatar_size, y * avatar_size))
+        avatar_collation.paste(Image.open(avatar_path).resize((avatar_size, avatar_size)), (x * avatar_size, y * avatar_size))
 
         if x < avatars_per_row - 1:
             x += 1
