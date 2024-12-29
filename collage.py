@@ -4,6 +4,7 @@ import glob
 from io import BytesIO
 import itertools
 from pathlib import Path
+from random import shuffle
 import sys
 import time
 from typing import Any, Callable
@@ -137,8 +138,10 @@ async def download_avatars(*, members: list[MemberRecord], target_id: int, avata
     await asyncio.gather(*tasks)
 
 
-def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str) -> None:
+def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, by_age: bool) -> None:
     avatar_image_paths = glob.glob(AVATAR_SAVE_DIRECTORY + f"{target_id}/*.png")
+    if not by_age:
+        shuffle(avatar_image_paths)
 
     # ... there has to be a better way to do this, right? -kit
     scale = 1
@@ -166,7 +169,7 @@ def generate_image(*, target_id: int, image_size: tuple[int, int], avatar_size: 
     avatar_collation.save(file_name)
 
 
-async def generate(*, token: str, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, skip_download: bool) -> None:
+async def generate(*, token: str, target_id: int, image_size: tuple[int, int], avatar_size: int, file_name: str, skip_download: bool, by_age: bool) -> None:
     Path(AVATAR_SAVE_DIRECTORY).joinpath(f"{target_id}/").mkdir(parents=True, exist_ok=True)
     if not skip_download:
         display("Fetching members.")
@@ -174,7 +177,7 @@ async def generate(*, token: str, target_id: int, image_size: tuple[int, int], a
         display("Downloading all avatars.")
         await download_avatars(members=members, target_id=target_id, avatar_size=avatar_size)
     display("Generating image.")
-    generate_image(target_id=target_id, image_size=image_size, avatar_size=avatar_size, file_name=file_name)
+    generate_image(target_id=target_id, image_size=image_size, avatar_size=avatar_size, file_name=file_name, by_age=by_age)
     display(f"Image saved to {file_name}")
     print("")
 
@@ -220,6 +223,12 @@ def main() -> None:
         default=False,
         help="Should the program skip the downloading process? (useful if already downloaded all images).",
     )
+    parser.add_argument(
+        "--by-age",
+        type=bool,
+        default=False,
+        help="Should the members be rendered by account age rather than in a random order?",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -253,6 +262,7 @@ def main() -> None:
             avatar_size=args.size,
             file_name=args.name,
             skip_download=args.skip_download,
+            by_age=args.by_age,
         )
     )
 
