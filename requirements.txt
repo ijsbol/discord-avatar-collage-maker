@@ -1,3 +1,2 @@
-discord.py
 pillow
-python-dotenv
+aiohttp
